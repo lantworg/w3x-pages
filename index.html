@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>W3X 地圖庫</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        .header {
+            background: #16213e;
+            padding: 20px;
+            border-bottom: 2px solid #0f3460;
+        }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto 20px;
+        }
+        .header h1 {
+            color: #e94560;
+            font-size: 1.8em;
+        }
+        .user-area {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-admin { background: #e94560; color: #fff; }
+        .badge-author { background: #4ade80; color: #000; }
+        .login-btn, .logout-btn, .admin-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+        .login-btn { background: #0f3460; color: #e94560; border: 1px solid #e94560; }
+        .login-btn:hover { background: #e94560; color: #fff; }
+        .logout-btn { background: transparent; color: #888; border: 1px solid #444; }
+        .logout-btn:hover { border-color: #e94560; color: #e94560; }
+        .admin-btn { background: #e94560; color: #fff; }
+        .admin-btn:hover { background: #ff6b6b; }
+        .search-box {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .search-input {
+            padding: 12px 20px;
+            font-size: 16px;
+            border: 2px solid #0f3460;
+            border-radius: 8px;
+            background: #1a1a2e;
+            color: #fff;
+            width: 100%;
+            max-width: 400px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .search-input:focus { border-color: #e94560; }
+        .search-input::placeholder { color: #666; }
+        .upload-btn {
+            padding: 12px 24px;
+            background: #e94560;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .upload-btn:hover { background: #ff6b6b; }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+        .results-info {
+            margin-bottom: 20px;
+            color: #888;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+        @media (max-width: 1200px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) {
+            .grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 1.4em; }
+            .header-top { flex-direction: column; gap: 15px; }
+        }
+        .card {
+            background: #16213e;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid #0f3460;
+            position: relative;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(233, 69, 96, 0.2);
+        }
+        .card.pinned { border-color: #e94560; }
+        .card.processing { opacity: 0.7; }
+        .card.failed { border-color: #991b1b; }
+        .processing-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #1e40af;
+            color: #93c5fd;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            z-index: 1;
+        }
+        .failed-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #991b1b;
+            color: #fca5a5;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            z-index: 1;
+        }
+        .pin-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #e94560;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            z-index: 1;
+        }
+        .card-img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            background: #0f3460;
+            cursor: pointer;
+        }
+        .card-body { padding: 15px; }
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.4;
+            min-height: 39px;
+        }
+        .card-meta {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+        .uploader-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            background: #4ade80;
+            color: #000;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .card-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .download-btn, .detail-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            text-decoration: none;
+            border: 1px solid;
+        }
+        .download-btn {
+            background: #0f3460;
+            color: #e94560;
+            border-color: #e94560;
+        }
+        .download-btn:hover { background: #e94560; color: #fff; }
+        .detail-btn {
+            background: transparent;
+            color: #888;
+            border-color: #444;
+        }
+        .detail-btn:hover { border-color: #e94560; color: #e94560; }
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        .no-results h2 { margin-bottom: 10px; color: #888; }
+
+        /* Modal Base */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #16213e;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            border: 2px solid #0f3460;
+            position: relative;
+        }
+        .modal-title {
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            color: #e94560;
+        }
+        .close-btn {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 24px;
+            color: #888;
+            cursor: pointer;
+        }
+        .close-btn:hover { color: #fff; }
+
+        /* Upload Modal */
+        .drop-zone {
+            border: 2px dashed #0f3460;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: #e94560;
+            background: rgba(233, 69, 96, 0.1);
+        }
+        .drop-zone p { color: #888; margin-bottom: 10px; }
+        .drop-zone input { display: none; }
+        .upload-queue {
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .upload-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        .upload-item-name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 14px;
+        }
+        .upload-item-status {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .status-pending { background: #444; color: #888; }
+        .status-uploading { background: #0f3460; color: #e94560; }
+        .status-success { background: #166534; color: #4ade80; }
+        .status-error { background: #991b1b; color: #fca5a5; }
+        .status-duplicate { background: #854d0e; color: #fde047; }
+        .status-processing { background: #1e40af; color: #93c5fd; }
+        .upload-item-percent {
+            font-size: 12px;
+            color: #e94560;
+            min-width: 40px;
+            text-align: right;
+        }
+        .overall-progress {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 10px;
+            display: none;
+        }
+        .overall-progress.active { display: block; }
+        .progress-bar {
+            height: 8px;
+            background: #0f3460;
+            border-radius: 4px;
+            margin-top: 15px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-bar.active { display: block; }
+        .progress-fill {
+            height: 100%;
+            background: #e94560;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .upload-status {
+            margin-top: 15px;
+            text-align: center;
+            color: #888;
+        }
+
+        /* Login Modal */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #888;
+            font-size: 14px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            background: #1a1a2e;
+            border: 2px solid #0f3460;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+        }
+        .form-input:focus { border-color: #e94560; outline: none; }
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: #e94560;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .submit-btn:hover { background: #ff6b6b; }
+        .form-error {
+            color: #e94560;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        /* Detail Modal */
+        .detail-content {
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding-top: 50px;
+        }
+        .detail-header {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        .detail-preview {
+            width: 180px;
+            height: 180px;
+            flex-shrink: 0;
+            object-fit: cover;
+            background: #0f3460;
+            border-radius: 8px;
+        }
+        .detail-main {
+            flex: 1;
+            min-width: 0;
+        }
+        .detail-title {
+            font-size: 1.2em;
+            color: #e94560;
+            margin-bottom: 10px;
+            word-break: break-word;
+        }
+        .detail-meta {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 4px 12px;
+            font-size: 13px;
+        }
+        .detail-meta dt { color: #666; }
+        .detail-meta dd { color: #ccc; margin: 0; }
+        .owner-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #0f3460;
+        }
+        .pin-btn, .delete-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+        }
+        .pin-btn { background: #0f3460; color: #e94560; }
+        .pin-btn.pinned { background: #e94560; color: #fff; }
+        .delete-btn { background: #991b1b; color: #fca5a5; }
+        @media (max-width: 600px) {
+            .detail-header { flex-direction: column; align-items: center; }
+            .detail-preview { width: 150px; height: 150px; }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #888;
+        }
+
+        .load-more-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 30px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        .load-more-spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #333;
+            border-top-color: #e94560;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-top">
+            <h1>W3X 地圖庫</h1>
+            <div class="user-area" id="userArea">
+                <button class="login-btn" id="loginBtn">登入</button>
+            </div>
+        </div>
+        <div class="search-box">
+            <input type="text" class="search-input" id="searchInput" placeholder="搜尋地圖名稱或檔名...">
+            <button class="upload-btn" id="uploadBtn">上傳地圖</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="results-info" id="resultsInfo">載入中...</div>
+        <div class="grid" id="mapGrid"></div>
+        <div class="loading" id="loading">載入中...</div>
+        <div class="no-results" id="noResults" style="display: none;">
+            <h2>找不到結果</h2>
+            <p>請嘗試其他關鍵字</p>
+        </div>
+    </main>
+
+    <!-- Login Modal -->
+    <div class="modal" id="loginModal" onclick="if(event.target===this)closeModal('loginModal')">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('loginModal')">&times;</span>
+            <h2 class="modal-title">登入</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>用戶名</label>
+                    <input type="text" class="form-input" id="loginUsername" required>
+                </div>
+                <div class="form-group">
+                    <label>密碼</label>
+                    <input type="password" class="form-input" id="loginPassword" required>
+                </div>
+                <div class="form-error" id="loginError"></div>
+                <button type="submit" class="submit-btn">登入</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="modal" id="uploadModal" onclick="if(event.target===this)closeModal('uploadModal')">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('uploadModal')">&times;</span>
+            <h2 class="modal-title">上傳地圖</h2>
+            <div class="drop-zone" id="dropZone">
+                <p>拖放 .w3x 或 .w3m 檔案到這裡</p>
+                <p>或點擊選擇檔案（支援多選）</p>
+                <input type="file" id="fileInput" accept=".w3x,.w3m" multiple>
+            </div>
+            <div class="overall-progress" id="overallProgress">
+                正在上傳第 <span id="currentFileNum">1</span> / <span id="totalFileNum">1</span> 個檔案
+            </div>
+            <div class="upload-queue" id="uploadQueue"></div>
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="upload-status" id="uploadStatus"></div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal" id="detailModal" onclick="if(event.target===this)closeModal('detailModal')">
+        <div class="modal-content detail-content">
+            <span class="close-btn" onclick="closeModal('detailModal')">&times;</span>
+            <div class="detail-header">
+                <img class="detail-preview" id="detailPreview" src="">
+                <div class="detail-main">
+                    <h2 class="detail-title" id="detailTitle"></h2>
+                    <dl class="detail-meta">
+                        <dt>檔案</dt>
+                        <dd id="detailFilename"></dd>
+                        <dt>大小</dt>
+                        <dd id="detailSize"></dd>
+                        <dt>下載</dt>
+                        <dd id="detailDownloads"></dd>
+                        <dt>上傳者</dt>
+                        <dd id="detailUploader"></dd>
+                    </dl>
+                </div>
+            </div>
+            <div class="owner-actions" id="ownerActions" style="display: none;">
+                <button class="pin-btn" id="pinBtn">置頂</button>
+                <button class="delete-btn" id="deleteBtn">刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ CONFIGURATION - CHANGE THESE FOR YOUR DEPLOYMENT ============
+        const API_BASE = 'https://w3i.lantw.org';  // VPS API via Cloudflare
+        const R2_PUBLIC_URL = 'https://w3x.lantw.org';
+        // ==========================================================================
+
+        let allMaps = [];
+        let currentUser = null;
+        let currentDetailMap = null;
+
+        // Infinite scroll state
+        const MAPS_PER_PAGE = 20;
+        let currentPage = 1;
+        let totalMaps = 0;
+        let totalPages = 1;
+        let isLoadingMore = false;
+        let currentSearchQuery = '';
+
+        const mapGrid = document.getElementById('mapGrid');
+        const searchInput = document.getElementById('searchInput');
+        const resultsInfo = document.getElementById('resultsInfo');
+        const noResults = document.getElementById('noResults');
+        const loading = document.getElementById('loading');
+
+        // Auth
+        function getToken() {
+            return localStorage.getItem('token');
+        }
+
+        function setToken(token) {
+            localStorage.setItem('token', token);
+        }
+
+        function clearToken() {
+            localStorage.removeItem('token');
+        }
+
+        function authHeaders() {
+            const token = getToken();
+            return token ? { 'Authorization': `Bearer ${token}` } : {};
+        }
+
+        // Check login status on load
+        async function checkAuth() {
+            const token = getToken();
+            if (!token) {
+                updateUserArea(null);
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/auth/me`, { headers: authHeaders() });
+                if (res.ok) {
+                    currentUser = await res.json();
+                    updateUserArea(currentUser);
+                } else {
+                    clearToken();
+                    updateUserArea(null);
+                }
+            } catch {
+                clearToken();
+                updateUserArea(null);
+            }
+        }
+
+        function updateUserArea(user) {
+            const area = document.getElementById('userArea');
+            if (user) {
+                const badgeClass = user.role === 'admin' ? 'badge-admin' : 'badge-author';
+                const roleText = user.role === 'admin' ? '管理員' : '作者';
+                area.innerHTML = `
+                    <div class="user-info">
+                        <span>${user.username}</span>
+                        <span class="user-badge ${badgeClass}">${roleText}</span>
+                    </div>
+                    <a href="author.html" class="admin-btn">我的地圖</a>
+                    ${user.role === 'admin' ? '<a href="admin.html" class="admin-btn">管理</a>' : ''}
+                    <button class="logout-btn" onclick="logout()">登出</button>
+                `;
+            } else {
+                area.innerHTML = '<button class="login-btn" onclick="openModal(\'loginModal\')">登入</button>';
+            }
+        }
+
+        async function logout() {
+            clearToken();
+            currentUser = null;
+            updateUserArea(null);
+            loadMaps();
+        }
+
+        // Login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    setToken(data.token);
+                    currentUser = data.user;
+                    updateUserArea(currentUser);
+                    closeModal('loginModal');
+                    document.getElementById('loginForm').reset();
+                    errorEl.textContent = '';
+                } else {
+                    errorEl.textContent = '用戶名或密碼錯誤';
+                }
+            } catch {
+                errorEl.textContent = '登入失敗，請重試';
+            }
+        });
+
+        // Modal helpers
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // Format file size
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // Get preview URL (from R2)
+        function getPreviewUrl(map) {
+            const url = `${R2_PUBLIC_URL}/maps/${map.id}/preview.png`;
+            if (map.status === 'ready') {
+                const ts = new Date(map.created_at).getTime();
+                return `${url}?v=${ts}`;
+            }
+            return url;
+        }
+
+        // Get download URL (from R2)
+        function getDownloadUrl(map) {
+            return `${R2_PUBLIC_URL}/maps/${map.id}/${encodeURIComponent(map.filename)}`;
+        }
+
+        // Download with count tracking
+        function downloadMap(mapId, filename) {
+            // Fire and forget - call VPS to update download count
+            fetch(`${API_BASE}/api/download/${mapId}/count`, { method: 'POST' }).catch(() => {});
+            // Direct download from R2
+            window.open(`${R2_PUBLIC_URL}/maps/${mapId}/${encodeURIComponent(filename)}`, '_blank');
+        }
+
+        // Render a single map card
+        function createMapCard(map) {
+            const card = document.createElement('div');
+            let cardClass = 'card';
+            if (map.pinned) cardClass += ' pinned';
+            if (map.status === 'processing') cardClass += ' processing';
+            if (map.status === 'failed') cardClass += ' failed';
+            card.className = cardClass;
+            card.dataset.mapId = map.id;
+
+            let uploaderBadge = '';
+            if (map.uploader_id) {
+                uploaderBadge = `<div class="uploader-badge">由作者上傳</div>`;
+            }
+
+            let statusBadge = '';
+            if (map.status === 'processing') {
+                statusBadge = '<div class="processing-badge">處理中</div>';
+            } else if (map.status === 'failed') {
+                statusBadge = '<div class="failed-badge">上傳失敗</div>';
+            } else if (map.pinned) {
+                statusBadge = '<div class="pin-badge">置頂</div>';
+            }
+
+            const downloadDisabled = map.status !== 'ready';
+            const downloadBtn = downloadDisabled
+                ? `<span class="download-btn" style="opacity:0.5;cursor:not-allowed">下載</span>`
+                : `<button class="download-btn" onclick="downloadMap('${map.id}', '${map.filename.replace(/'/g, "\\'")}')">下載</button>`;
+
+            card.innerHTML = `
+                ${statusBadge}
+                <img class="card-img" src="${getPreviewUrl(map)}" alt="${map.name}" loading="lazy"
+                     onclick="showDetail('${map.id}')"
+                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22256%22 height=%22256%22><rect fill=%22%230f3460%22 width=%22256%22 height=%22256%22/></svg>'">
+                <div class="card-body">
+                    <div class="card-title">${map.name}</div>
+                    <div class="card-meta">${map.filename} (${formatSize(map.file_size)})</div>
+                    ${uploaderBadge}
+                    <div class="card-actions">
+                        ${downloadBtn}
+                        <button class="detail-btn" onclick="showDetail('${map.id}')">詳細</button>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        // Render maps
+        function renderMaps(maps, append = false) {
+            loading.style.display = 'none';
+
+            if (!append) {
+                mapGrid.innerHTML = '';
+            }
+
+            if (maps.length === 0 && !append) {
+                noResults.style.display = 'block';
+                resultsInfo.textContent = '找不到結果';
+                removeLoadingIndicator();
+                return;
+            }
+
+            noResults.style.display = 'none';
+            resultsInfo.textContent = `顯示 ${allMaps.length} / ${totalMaps} 張地圖`;
+
+            maps.forEach(map => {
+                const card = createMapCard(map);
+                mapGrid.appendChild(card);
+            });
+
+            if (currentPage < totalPages) {
+                showLoadingIndicator();
+            } else {
+                removeLoadingIndicator();
+            }
+        }
+
+        function showLoadingIndicator() {
+            removeLoadingIndicator();
+            const indicator = document.createElement('div');
+            indicator.id = 'loadMoreIndicator';
+            indicator.className = 'load-more-indicator';
+            indicator.innerHTML = '<div class="load-more-spinner"></div><span>載入更多...</span>';
+            mapGrid.parentElement.appendChild(indicator);
+        }
+
+        function removeLoadingIndicator() {
+            const existing = document.getElementById('loadMoreIndicator');
+            if (existing) existing.remove();
+        }
+
+        // Load more maps when scrolling
+        async function loadMoreMaps() {
+            if (isLoadingMore || currentPage >= totalPages) return;
+            isLoadingMore = true;
+
+            try {
+                const nextPage = currentPage + 1;
+                const params = new URLSearchParams({ page: nextPage, limit: MAPS_PER_PAGE });
+                if (currentSearchQuery) params.set('q', currentSearchQuery);
+
+                const response = await fetch(`${API_BASE}/api/maps?${params}`);
+                const data = await response.json();
+
+                allMaps = [...allMaps, ...data.maps];
+                currentPage = data.page;
+                totalMaps = data.total;
+                totalPages = data.total_pages;
+
+                renderMaps(data.maps, true);
+
+                if (data.maps.some(m => m.status === 'processing')) {
+                    startStatusPolling();
+                }
+            } catch (error) {
+                console.error('Failed to load more maps:', error);
+            } finally {
+                isLoadingMore = false;
+            }
+        }
+
+        // Scroll handler
+        let scrollTimeout;
+        function handleScroll() {
+            if (scrollTimeout) return;
+            scrollTimeout = setTimeout(() => {
+                scrollTimeout = null;
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollHeight = document.documentElement.scrollHeight;
+                const clientHeight = document.documentElement.clientHeight;
+
+                if (scrollTop + clientHeight >= scrollHeight - 300) {
+                    loadMoreMaps();
+                }
+            }, 100);
+        }
+
+        window.addEventListener('scroll', handleScroll);
+
+        // Show detail modal
+        function showDetail(mapId) {
+            const map = allMaps.find(m => m.id === mapId);
+            if (!map) return;
+
+            currentDetailMap = map;
+
+            document.getElementById('detailPreview').src = getPreviewUrl(map);
+            document.getElementById('detailTitle').textContent = map.name;
+            document.getElementById('detailFilename').textContent = map.filename;
+            document.getElementById('detailSize').textContent = formatSize(map.file_size);
+            document.getElementById('detailDownloads').textContent = map.download_count;
+            document.getElementById('detailUploader').textContent = map.uploader_id ? '作者上傳' : '匿名';
+
+            const ownerActions = document.getElementById('ownerActions');
+            if (currentUser && (currentUser.role === 'admin' || currentUser.id === map.uploader_id)) {
+                ownerActions.style.display = 'flex';
+                const pinBtn = document.getElementById('pinBtn');
+                pinBtn.textContent = map.pinned ? '取消置頂' : '置頂';
+                pinBtn.className = 'pin-btn' + (map.pinned ? ' pinned' : '');
+            } else {
+                ownerActions.style.display = 'none';
+            }
+
+            openModal('detailModal');
+        }
+
+        // Pin/unpin map
+        document.getElementById('pinBtn').addEventListener('click', async () => {
+            if (!currentDetailMap || !currentUser) return;
+
+            const endpoint = currentUser.role === 'admin'
+                ? `${API_BASE}/api/admin/maps/${currentDetailMap.id}/pin`
+                : `${API_BASE}/api/author/maps/${currentDetailMap.id}/pin`;
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'PUT',
+                    headers: authHeaders()
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    currentDetailMap.pinned = data.pinned;
+
+                    const pinBtn = document.getElementById('pinBtn');
+                    pinBtn.textContent = data.pinned ? '取消置頂' : '置頂';
+                    pinBtn.className = 'pin-btn' + (data.pinned ? ' pinned' : '');
+
+                    loadMaps();
+                }
+            } catch (e) {
+                console.error('Pin failed:', e);
+            }
+        });
+
+        // Delete map
+        document.getElementById('deleteBtn').addEventListener('click', async () => {
+            if (!currentDetailMap || !currentUser) return;
+            if (!confirm('確定要刪除這張地圖嗎？')) return;
+
+            const endpoint = `${API_BASE}/api/author/maps/${currentDetailMap.id}`;
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'DELETE',
+                    headers: authHeaders()
+                });
+
+                if (res.ok) {
+                    closeModal('detailModal');
+                    loadMaps();
+                } else {
+                    alert('刪除失敗');
+                }
+            } catch (e) {
+                alert('刪除失敗');
+            }
+        });
+
+        // Polling for processing maps
+        let statusPollTimer = null;
+
+        function startStatusPolling() {
+            if (statusPollTimer) return;
+            statusPollTimer = setInterval(async () => {
+                const hasProcessing = allMaps.some(m => m.status === 'processing');
+                if (!hasProcessing) {
+                    clearInterval(statusPollTimer);
+                    statusPollTimer = null;
+                    return;
+                }
+                try {
+                    const response = await fetch(`${API_BASE}/api/maps`);
+                    const data = await response.json();
+                    const oldStatuses = {};
+                    allMaps.forEach(m => oldStatuses[m.id] = m.status);
+                    allMaps = data.maps;
+                    const changed = allMaps.some(m => oldStatuses[m.id] && oldStatuses[m.id] !== m.status);
+                    if (changed) {
+                        renderMaps(allMaps);
+                    }
+                } catch (e) {
+                    console.error('Status poll failed:', e);
+                }
+            }, 3000);
+        }
+
+        // Load maps from API
+        async function loadMaps(resetPage = true) {
+            try {
+                if (resetPage) {
+                    currentPage = 1;
+                    allMaps = [];
+                    mapGrid.innerHTML = '';
+                }
+
+                const params = new URLSearchParams({ page: currentPage, limit: MAPS_PER_PAGE });
+                if (currentSearchQuery) params.set('q', currentSearchQuery);
+
+                const response = await fetch(`${API_BASE}/api/maps?${params}`);
+                const data = await response.json();
+
+                allMaps = data.maps;
+                currentPage = data.page;
+                totalMaps = data.total;
+                totalPages = data.total_pages;
+
+                renderMaps(allMaps);
+
+                if (allMaps.some(m => m.status === 'processing')) {
+                    startStatusPolling();
+                }
+            } catch (error) {
+                console.error('Failed to load maps:', error);
+                loading.textContent = '載入失敗，請重試';
+            }
+        }
+
+        // Search with debounce
+        let debounceTimer;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                currentSearchQuery = e.target.value.trim();
+                loadMaps(true);
+            }, 300);
+        });
+
+        // Upload Modal
+        document.getElementById('uploadBtn').addEventListener('click', () => openModal('uploadModal'));
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadQueue = document.getElementById('uploadQueue');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const uploadStatus = document.getElementById('uploadStatus');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        // Hash function for duplicate check
+        async function calculatePartialHash(file) {
+            const chunkSize = 64 * 1024;
+            const chunk = file.slice(0, chunkSize);
+            const buffer = await chunk.arrayBuffer();
+            const bytes = new Uint8Array(buffer);
+
+            let h1 = 5381;
+            let h2 = 2166136261;
+            let h3 = 0;
+            let h4 = 0;
+
+            for (let i = 0; i < bytes.length; i++) {
+                const b = bytes[i];
+                h1 = ((h1 << 5) + h1) ^ b;
+                h2 = Math.imul(h2 ^ b, 16777619);
+                h3 = (h3 * 31 + b) | 0;
+                h4 = (h4 + b * (i + 1)) | 0;
+            }
+
+            h1 ^= bytes.length;
+            h2 ^= bytes.length;
+
+            const hex = (n) => (n >>> 0).toString(16).padStart(8, '0');
+            return hex(h1) + hex(h2) + hex(h3) + hex(h4) +
+                   hex(h1 ^ h2) + hex(h2 ^ h3) + hex(h3 ^ h4) + hex(h4 ^ h1);
+        }
+
+        // Upload with progress
+        function uploadWithProgress(url, formData, onProgress) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        onProgress(percent);
+                    }
+                };
+
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try {
+                            resolve(JSON.parse(xhr.responseText));
+                        } catch {
+                            resolve({ success: true });
+                        }
+                    } else {
+                        reject(new Error(xhr.statusText || 'Upload failed'));
+                    }
+                };
+
+                xhr.onerror = () => reject(new Error('Network error'));
+
+                xhr.open('POST', url);
+                const token = getToken();
+                if (token) {
+                    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                }
+                xhr.send(formData);
+            });
+        }
+
+        // Handle file upload
+        async function handleFiles(files) {
+            const validFiles = Array.from(files).filter(f =>
+                f.name.match(/\.(w3x|w3m)$/i)
+            );
+
+            if (validFiles.length === 0) {
+                uploadStatus.textContent = '只支援 .w3x 和 .w3m 檔案';
+                uploadStatus.style.color = '#e94560';
+                return;
+            }
+
+            uploadQueue.innerHTML = '';
+
+            validFiles.forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'upload-item';
+                item.id = `upload-item-${index}`;
+                item.innerHTML = `
+                    <span class="upload-item-name">${file.name}</span>
+                    <span class="upload-item-percent">0%</span>
+                    <span class="upload-item-status status-pending">等待中</span>
+                `;
+                uploadQueue.appendChild(item);
+            });
+
+            const overallProgress = document.getElementById('overallProgress');
+            overallProgress.classList.add('active');
+            document.getElementById('totalFileNum').textContent = validFiles.length;
+            progressBar.classList.add('active');
+
+            let successCount = 0;
+            let failCount = 0;
+            const uploadedHashes = new Set();
+
+            for (let i = 0; i < validFiles.length; i++) {
+                const file = validFiles[i];
+                const item = document.getElementById(`upload-item-${i}`);
+                const statusEl = item.querySelector('.upload-item-status');
+                const percentEl = item.querySelector('.upload-item-percent');
+
+                document.getElementById('currentFileNum').textContent = i + 1;
+
+                statusEl.textContent = '檢查中...';
+                statusEl.className = 'upload-item-status status-uploading';
+                percentEl.textContent = '-';
+
+                let isDuplicate = false;
+                let localHash = null;
+
+                try {
+                    let retries = 3;
+                    let response = null;
+                    while (retries > 0) {
+                        try {
+                            response = await fetch(`${API_BASE}/api/check-duplicate?size=${file.size}`);
+                            if (response.ok) break;
+                        } catch (fetchErr) {
+                            console.warn(`Duplicate check attempt failed, retries left: ${retries - 1}`);
+                        }
+                        retries--;
+                        if (retries > 0) await new Promise(r => setTimeout(r, 500));
+                    }
+
+                    if (!response || !response.ok) {
+                        throw new Error('Failed to check duplicate after retries');
+                    }
+
+                    const data = await response.json();
+
+                    if (data.candidates && data.candidates.length > 0) {
+                        localHash = await calculatePartialHash(file);
+                        for (const candidate of data.candidates) {
+                            if (candidate.partial_hash === localHash) {
+                                isDuplicate = true;
+                                break;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Duplicate check failed:', e);
+                    statusEl.textContent = '檢查失敗，繼續上傳...';
+                }
+
+                if (!isDuplicate && !localHash) {
+                    const sizeKey = `size-${file.size}`;
+                    if (uploadedHashes.has(sizeKey)) {
+                        localHash = await calculatePartialHash(file);
+                    }
+                }
+
+                if (localHash) {
+                    const sizeHashKey = `${file.size}-${localHash}`;
+                    if (uploadedHashes.has(sizeHashKey)) {
+                        isDuplicate = true;
+                    }
+                }
+
+                if (isDuplicate) {
+                    statusEl.textContent = '重複';
+                    statusEl.className = 'upload-item-status status-duplicate';
+                    percentEl.textContent = '-';
+                    failCount++;
+                    continue;
+                }
+
+                statusEl.textContent = '上傳中...';
+                percentEl.textContent = '0%';
+                progressFill.style.width = '0%';
+
+                let uploadSuccess = false;
+                let uploadRetries = 2;
+
+                while (!uploadSuccess && uploadRetries >= 0) {
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', file);
+
+                        await uploadWithProgress(`${API_BASE}/api/upload`, formData, (percent) => {
+                            percentEl.textContent = `${percent}%`;
+                            progressFill.style.width = `${percent}%`;
+                        });
+
+                        uploadSuccess = true;
+                        percentEl.textContent = '100%';
+                        statusEl.textContent = '處理中';
+                        statusEl.className = 'upload-item-status status-processing';
+                        successCount++;
+
+                        try {
+                            if (!localHash) {
+                                localHash = await calculatePartialHash(file);
+                            }
+                            const sizeHashKey = `${file.size}-${localHash}`;
+                            uploadedHashes.add(sizeHashKey);
+                            uploadedHashes.add(`size-${file.size}`);
+                        } catch (hashErr) {
+                            console.error('Hash calculation failed:', hashErr);
+                        }
+                    } catch (e) {
+                        uploadRetries--;
+                        if (uploadRetries >= 0) {
+                            console.warn(`Upload failed, retrying (${uploadRetries} left):`, e.message);
+                            statusEl.textContent = '重試中...';
+                            await new Promise(r => setTimeout(r, 1000));
+                        } else {
+                            console.error('Upload failed after retries:', e);
+                            statusEl.textContent = '失敗';
+                            statusEl.className = 'upload-item-status status-error';
+                            percentEl.textContent = '-';
+                            failCount++;
+                        }
+                    }
+                }
+            }
+
+            progressBar.classList.remove('active');
+            overallProgress.classList.remove('active');
+
+            uploadStatus.textContent = `完成：${successCount} 成功，${failCount} 失敗`;
+            uploadStatus.style.color = failCount === 0 ? '#4ade80' : '#e94560';
+
+            if (successCount > 0) {
+                setTimeout(() => {
+                    loadMaps();
+                }, 1000);
+            }
+
+            fileInput.value = '';
+        }
+
+        // Initial load
+        checkAuth();
+        loadMaps();
+    </script>
+</body>
+</html>
