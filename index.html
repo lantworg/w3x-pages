@@ -580,7 +580,8 @@
 
     <script>
         // ============ CONFIGURATION - CHANGE THESE FOR YOUR DEPLOYMENT ============
-        const API_BASE = 'https://w3i.lantw.org';  // VPS API via Cloudflare
+        const API_BASE = 'https://w3i.lantw.org';  // VPS API via Cloudflare (100MB limit)
+        const UPLOAD_API = 'https://upload.lantw.org';  // Direct VPS for large uploads (500MB limit)
         const R2_PUBLIC_URL = 'https://w3x.lantw.org';
         // ==========================================================================
 
@@ -1232,7 +1233,7 @@
                         const formData = new FormData();
                         formData.append('file', file);
 
-                        await uploadWithProgress(`${API_BASE}/api/upload`, formData, (percent) => {
+                        await uploadWithProgress(`${UPLOAD_API}/api/upload`, formData, (percent) => {
                             percentEl.textContent = `${percent}%`;
                             progressFill.style.width = `${percent}%`;
                         });
