@@ -181,6 +181,51 @@
             border-radius: 4px;
             background: #0f3460;
         }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal {
+            background: #16213e;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #0f3460;
+            text-align: center;
+            min-width: 280px;
+        }
+        .modal h3 {
+            color: #e94560;
+            margin-bottom: 20px;
+        }
+        .version-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .version-btn {
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            background: #0f3460;
+            color: #e94560;
+            border: 2px solid #e94560;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .version-btn:hover {
+            background: #e94560;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -248,6 +293,18 @@
             </div>
         </div>
     </main>
+
+    <!-- Version Selection Modal -->
+    <div class="modal-overlay" id="versionModal" style="display: none;">
+        <div class="modal">
+            <h3>選擇遊戲版本</h3>
+            <div class="version-buttons">
+                <button class="version-btn" onclick="openHostRoom('1.28')">1.28</button>
+                <button class="version-btn" onclick="openHostRoom('1.29')">1.29</button>
+            </div>
+            <button class="btn btn-secondary" onclick="closeVersionModal()">取消</button>
+        </div>
+    </div>
 
     <script>
         const API_BASE = 'https://w3i.lantw.org';
@@ -347,6 +404,7 @@
                     <td>${map.download_count}</td>
                     <td>${map.pinned ? '<span class="pin-indicator">置頂</span>' : '-'}</td>
                     <td>
+                        <button class="btn btn-primary" onclick="showVersionModal('${map.id}', \`${map.filename.replace(/`/g, '\\`')}\`)">官方開房</button>
                         <button class="btn btn-secondary" onclick="togglePin('${map.id}')">${map.pinned ? '取消置頂' : '置頂'}</button>
                         <button class="btn btn-danger" onclick="deleteMap('${map.id}')">刪除</button>
                     </td>
@@ -442,6 +500,38 @@
                 showToast('刪除失敗', 'error');
             }
         }
+
+        // Host room functionality
+        let currentHostMap = null;
+
+        function showVersionModal(mapId, filename) {
+            currentHostMap = { id: mapId, filename: filename };
+            document.getElementById('versionModal').style.display = 'flex';
+        }
+
+        function closeVersionModal() {
+            document.getElementById('versionModal').style.display = 'none';
+            currentHostMap = null;
+        }
+
+        function openHostRoom(version) {
+            if (!currentHostMap) return;
+
+            const mapUrl = `${R2_PUBLIC_URL}/maps/${currentHostMap.id}/${encodeURIComponent(currentHostMap.filename)}`;
+            const baseUrl = version === '1.28'
+                ? 'http://125.228.62.114:6889/?url='
+                : 'http://125.228.62.114:6888/?url=';
+
+            window.open(baseUrl + encodeURIComponent(mapUrl), '_blank');
+            closeVersionModal();
+        }
+
+        // Close modal when clicking overlay
+        document.getElementById('versionModal').addEventListener('click', (e) => {
+            if (e.target.id === 'versionModal') {
+                closeVersionModal();
+            }
+        });
 
         // Batch delete
         document.getElementById('batchDeleteBtn').addEventListener('click', async () => {
