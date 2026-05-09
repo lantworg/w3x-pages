@@ -232,6 +232,7 @@
             <div class="tabs">
                 <button class="tab active" data-panel="users">用戶管理</button>
                 <button class="tab" data-panel="maps">地圖管理</button>
+                <button class="tab" data-panel="rooms">房間管理</button>
             </div>
 
             <!-- Users Panel -->
@@ -308,11 +309,39 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Rooms Panel -->
+            <div class="panel" id="roomsPanel">
+                <div class="action-bar">
+                    <button class="btn btn-primary" id="refreshRoomsBtn">重新整理</button>
+                    <span style="color:#888; margin-left:12px;" id="roomsStatus"></span>
+                </div>
+                <div class="card">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>房間名</th>
+                                <th>地圖</th>
+                                <th>狀態</th>
+                                <th>VPN IP</th>
+                                <th>建立時間</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roomsList"></tbody>
+                    </table>
+                    <div class="empty-state" id="roomsEmpty" style="display: none;">
+                        沒有房間
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 
     <script>
         const API_BASE = 'https://w3i.lantw.org';
+        const HOST_API = `${API_BASE}/api/host`;
+        const mapNameCache = new Map();   // map_id -> name
 
         // Auth
         function getToken() {
@@ -601,12 +630,87 @@
             }
         });
 
+        // Rooms (bridge admin)
+        async function fetchMapName(mapId) {
+            if (!mapId) return '(unknown)';
+            if (mapNameCache.has(mapId)) return mapNameCache.get(mapId);
+            try {
+                const r = await fetch(`${API_BASE}/api/maps/${mapId}`);
+                if (r.ok) {
+                    const m = await r.json();
+                    mapNameCache.set(mapId, m.name || mapId);
+                    return mapNameCache.get(mapId);
+                }
+            } catch {}
+            return mapId;
+        }
+
+        function statusBadge(s) {
+            const colors = { running: '#2ecc71', starting: '#f39c12', stopped: '#888', crashed: '#e94560', failed: '#e94560' };
+            const c = colors[s] || '#888';
+            return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${c};color:#fff;font-size:12px;">${s}</span>`;
+        }
+
+        async function loadRooms() {
+            const status = document.getElementById('roomsStatus');
+            status.textContent = '載入中...';
+            try {
+                const r = await fetch(`${HOST_API}/rooms`);
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                const rooms = await r.json();
+                const list = document.getElementById('roomsList');
+                const empty = document.getElementById('roomsEmpty');
+                list.innerHTML = '';
+                if (!rooms.length) {
+                    empty.style.display = 'block';
+                    status.textContent = '0 個房間';
+                    return;
+                }
+                empty.style.display = 'none';
+                status.textContent = `${rooms.length} 個房間`;
+                for (const room of rooms) {
+                    const tr = document.createElement('tr');
+                    const mapName = await fetchMapName(room.map_id);
+                    const created = (room.created_at || '').replace('T', ' ').replace(/\..+$/, '');
+                    const canStop = !['stopped', 'crashed', 'failed'].includes(room.status);
+                    tr.innerHTML = `
+                        <td>${room.room_name || '-'}</td>
+                        <td>${mapName}</td>
+                        <td>${statusBadge(room.status)}</td>
+                        <td><code>${room.assigned_ip || '-'}</code></td>
+                        <td>${created}</td>
+                        <td>${canStop ? `<button class="btn btn-danger" data-stop="${room.id}">停止</button>` : ''}</td>`;
+                    list.appendChild(tr);
+                }
+                list.querySelectorAll('[data-stop]').forEach(btn => {
+                    btn.addEventListener('click', () => stopRoom(btn.dataset.stop));
+                });
+            } catch (e) {
+                status.textContent = '載入失敗：' + e.message;
+            }
+        }
+
+        async function stopRoom(id) {
+            if (!confirm('確認停止這個房間？')) return;
+            try {
+                const r = await fetch(`${HOST_API}/rooms/${id}`, { method: 'DELETE' });
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                showToast('已停止');
+                loadRooms();
+            } catch (e) {
+                showToast('停止失敗：' + e.message, 'error');
+            }
+        }
+
+        document.getElementById('refreshRoomsBtn').addEventListener('click', loadRooms);
+
         // Initialize
         async function init() {
             const isAdmin = await checkAdminAuth();
             if (isAdmin) {
                 loadUsers();
                 loadMaps();
+                loadRooms();
             }
         }
 
