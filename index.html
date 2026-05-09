@@ -207,7 +207,7 @@
             display: flex;
             gap: 8px;
         }
-        .download-btn, .detail-btn {
+        .download-btn, .detail-btn, .create-room-btn {
             flex: 1;
             padding: 10px;
             border-radius: 6px;
@@ -224,6 +224,13 @@
             border-color: #e94560;
         }
         .download-btn:hover { background: #e94560; color: #fff; }
+        .create-room-btn {
+            background: #0f3460;
+            color: #2ecc71;
+            border-color: #2ecc71;
+            font-weight: bold;
+        }
+        .create-room-btn:hover:not(:disabled) { background: #2ecc71; color: #fff; }
         .detail-btn {
             background: transparent;
             color: #888;
@@ -578,11 +585,36 @@
         </div>
     </div>
 
+    <!-- Create Room Modal (player-facing) -->
+    <div class="modal" id="createRoomModal" onclick="if(event.target===this)closeModal('createRoomModal')">
+        <div class="modal-content" style="max-width: 460px;">
+            <span class="close-btn" onclick="closeModal('createRoomModal')">&times;</span>
+            <h2 class="modal-title">建立房間</h2>
+            <div id="createRoomMapName" style="margin-bottom:16px;color:#aaa;font-size:14px;"></div>
+            <div style="margin-bottom:20px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px;background:#1a1a2e;border:2px solid #0f3460;border-radius:8px;margin-bottom:8px;">
+                    <input type="radio" name="autostart_mode" value="full" checked>
+                    <span>滿員自動開始（建議）</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px;background:#1a1a2e;border:2px solid #0f3460;border-radius:8px;">
+                    <input type="radio" name="autostart_mode" value="count">
+                    <span>湊到</span>
+                    <input type="number" id="autostart_count" min="1" max="24" value="2"
+                        style="width:60px;padding:4px;background:#0f3460;border:1px solid #1abc9c;color:#fff;border-radius:4px;">
+                    <span>位人類玩家就開始</span>
+                </label>
+            </div>
+            <button class="submit-btn" id="createRoomSubmit" onclick="submitCreateRoom()">建立房間</button>
+            <div id="createRoomResult" style="margin-top:16px;display:none;"></div>
+        </div>
+    </div>
+
     <script>
         // ============ CONFIGURATION - CHANGE THESE FOR YOUR DEPLOYMENT ============
         const API_BASE = 'https://w3i.lantw.org';  // VPS API via Cloudflare (100MB limit)
         const UPLOAD_API = 'https://upload.lantw.org';  // Direct VPS for large uploads (500MB limit)
         const R2_PUBLIC_URL = 'https://w3x.lantw.org';
+        const HOST_API = `${API_BASE}/api/host`;  // Bridge: w3i.lantw.org/api/host/* -> CF Origin Rule -> home :8090
         // ==========================================================================
 
         let allMaps = [];
@@ -768,6 +800,11 @@
                 ? `<span class="download-btn" style="opacity:0.5;cursor:not-allowed">下載</span>`
                 : `<button class="download-btn" onclick="downloadMap('${map.id}', '${map.filename.replace(/'/g, "\\'")}')">下載</button>`;
 
+            const safeName = (map.name || '').replace(/'/g, "\\'").replace(/`/g, '\\`');
+            const createBtn = downloadDisabled
+                ? `<span class="create-room-btn" style="opacity:0.5;cursor:not-allowed">建立房間</span>`
+                : `<button class="create-room-btn" onclick="openCreateRoom('${map.id}', '${safeName}')">建立房間</button>`;
+
             card.innerHTML = `
                 ${statusBadge}
                 <img class="card-img" src="${getPreviewUrl(map)}" alt="${map.name}" loading="lazy"
@@ -779,6 +816,7 @@
                     ${uploaderBadge}
                     <div class="card-actions">
                         ${downloadBtn}
+                        ${createBtn}
                         <button class="detail-btn" onclick="showDetail('${map.id}')">詳細</button>
                     </div>
                 </div>
@@ -877,6 +915,53 @@
         }
 
         window.addEventListener('scroll', handleScroll);
+
+        // Player-facing room creation (calls bridge via Cloudflare Origin Rule)
+        let createRoomMapId = null;
+        function openCreateRoom(mapId, mapName) {
+            createRoomMapId = mapId;
+            document.getElementById('createRoomMapName').textContent = '地圖：' + mapName;
+            document.getElementById('createRoomResult').style.display = 'none';
+            const btn = document.getElementById('createRoomSubmit');
+            btn.disabled = false; btn.style.display = ''; btn.textContent = '建立房間';
+            openModal('createRoomModal');
+        }
+        async function submitCreateRoom() {
+            const mode = document.querySelector('input[name="autostart_mode"]:checked').value;
+            const body = { map_id: createRoomMapId };
+            if (mode === 'count') {
+                const n = parseInt(document.getElementById('autostart_count').value, 10);
+                if (!Number.isFinite(n) || n < 1) { alert('請輸入有效人數'); return; }
+                body.auto_start_at_count = n;
+            }
+            const btn = document.getElementById('createRoomSubmit');
+            btn.disabled = true; btn.textContent = '建立中…（5-15 秒）';
+            try {
+                const res = await fetch(`${HOST_API}/rooms`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+                const info = await res.json();
+                const result = document.getElementById('createRoomResult');
+                result.style.display = 'block';
+                result.innerHTML = `
+                    <div style="padding:16px;background:#0f3460;border-radius:8px;color:#fff;">
+                        <div style="color:#2ecc71;font-weight:bold;margin-bottom:12px;">✓ 房間已建立</div>
+                        <div style="margin:8px 0;"><strong>VPN 金鑰（點擊複製）：</strong></div>
+                        <code style="display:block;padding:8px;background:#000;border-radius:4px;word-break:break-all;user-select:all;cursor:pointer;"
+                              onclick="navigator.clipboard.writeText(this.textContent);this.style.background='#1abc9c';">${info.vpn_key}</code>
+                        <div style="margin-top:12px;font-size:13px;color:#aaa;">
+                            打開 vlangame → 貼上金鑰 → 連線後在 War3 區網列表就會看到這個房間。
+                        </div>
+                    </div>`;
+                btn.style.display = 'none';
+            } catch (e) {
+                alert('建立失敗：' + e.message);
+                btn.disabled = false; btn.textContent = '建立房間';
+            }
+        }
 
         // Show detail modal
         function showDetail(mapId) {
