@@ -591,18 +591,9 @@
             <span class="close-btn" onclick="closeModal('createRoomModal')">&times;</span>
             <h2 class="modal-title">建立房間</h2>
             <div id="createRoomMapName" style="margin-bottom:16px;color:#aaa;font-size:14px;"></div>
-            <div style="margin-bottom:20px;">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px;background:#1a1a2e;border:2px solid #0f3460;border-radius:8px;margin-bottom:8px;">
-                    <input type="radio" name="autostart_mode" value="full" checked>
-                    <span>滿員自動開始（建議）</span>
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px;background:#1a1a2e;border:2px solid #0f3460;border-radius:8px;">
-                    <input type="radio" name="autostart_mode" value="count">
-                    <span>湊到</span>
-                    <input type="number" id="autostart_count" min="1" max="24" value="2"
-                        style="width:60px;padding:4px;background:#0f3460;border:1px solid #1abc9c;color:#fff;border-radius:4px;">
-                    <span>位人類玩家就開始</span>
-                </label>
+            <div style="margin-bottom:20px;padding:14px;background:#1a1a2e;border-left:3px solid #2ecc71;border-radius:4px;color:#bbb;font-size:14px;line-height:1.6;">
+                ・人滿自動開始<br>
+                ・想提早開始：每人在房內輸入 <code style="background:#0f3460;padding:2px 6px;border-radius:3px;color:#2ecc71;">!votestart</code>，全員同意即開
             </div>
             <button class="submit-btn" id="createRoomSubmit" onclick="submitCreateRoom()">建立房間</button>
             <div id="createRoomResult" style="margin-top:16px;display:none;"></div>
@@ -927,13 +918,8 @@
             openModal('createRoomModal');
         }
         async function submitCreateRoom() {
-            const mode = document.querySelector('input[name="autostart_mode"]:checked').value;
+            // Always full-house autostart; players can also use !votestart in-room to start early.
             const body = { map_id: createRoomMapId };
-            if (mode === 'count') {
-                const n = parseInt(document.getElementById('autostart_count').value, 10);
-                if (!Number.isFinite(n) || n < 1) { alert('請輸入有效人數'); return; }
-                body.auto_start_at_count = n;
-            }
             const btn = document.getElementById('createRoomSubmit');
             btn.disabled = true; btn.textContent = '建立中…（5-15 秒）';
             try {
