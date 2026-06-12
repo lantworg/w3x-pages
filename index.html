@@ -605,7 +605,7 @@
         const API_BASE = 'https://w3i.lantw.org';  // VPS API via Cloudflare (100MB limit)
         const UPLOAD_API = 'https://upload.lantw.org';  // Direct VPS for large uploads (500MB limit)
         const R2_PUBLIC_URL = 'https://w3x.lantw.org';
-        const HOST_API = `${API_BASE}/api/host`;  // Bridge: w3i.lantw.org/api/host/* -> CF Origin Rule -> home :8090
+        const HOST_API = 'https://bridge.lantw.org/api/host';  // VPS bridge (CF proxied 43.99.43.247:8090)
         // ==========================================================================
 
         let allMaps = [];
